@@ -1,0 +1,152 @@
+ROUTINE globals
+    ; ПР2: Глобали та списки
+    ; Галерея/Музей - експонати виставок
+
+Main
+    Do ClearGlobal
+    Do InputExhibitData
+    Do DisplayAllData
+    Do DemonstrateGlobalFunctions
+    Quit
+
+ClearGlobal
+    Kill ^GalleryExhibit
+    Write "Глобал очищено",!
+    Quit
+
+InputExhibitData
+    New exhibitionName, creationYear, estimatedValue, exhibitDate
+    New artistName, artworkTitle, technique, dimensions
+    New stringList, systemList, combinedValue
+
+    Write !,"=== Введення даних експоната ===",!
+
+    ; Індекси глобала: str, int, float, date($H) - 4 індекси, 4 типи
+    Read "Назва виставки: ", exhibitionName, !
+    Read "Рік створення (ціле): ", creationYear, !
+    Read "Оціночна вартість (млн, напр. 2.5): ", estimatedValue, !
+    Read "Дата надходження ($H формат, напр. 66000): ", exhibitDate, !
+
+    ; Дані для списків
+    Read "ПІБ художника: ", artistName, !
+    Read "Назва твору: ", artworkTitle, !
+    Read "Техніка: ", technique, !
+    Read "Розміри (ШxВ): ", dimensions, !
+
+    ; Рядковий список - через розділитель
+    Set stringList = artistName_"|"_artworkTitle_"|"_technique
+
+    ; Системний список - $ListBuild
+    Set systemList = $ListBuild(dimensions, $Horolog, "активний")
+
+    ; Комбіноване значення: обидва види списків в одному вузлі
+    Set combinedValue = $ListBuild(stringList, systemList)
+
+    ; Зберігаємо з 4 індексами різних типів:
+    ; 1) exhibitionName - рядок
+    ; 2) +creationYear - ціле число
+    ; 3) +estimatedValue - дробове число (float)
+    ; 4) +exhibitDate - дата ($H формат)
+    Set ^GalleryExhibit(exhibitionName, +creationYear, +estimatedValue, +exhibitDate) = combinedValue
+
+    Write !,"Збережено",!
+    Quit
+
+DisplayAllData
+    New exh, yr, val, dt, data, strList, sysList
+
+    Write !,"=== Дані глобала ===",!
+
+    Set exh = ""
+    For {
+        Set exh = $Order(^GalleryExhibit(exh))
+        Quit:exh=""
+
+        Set yr = ""
+        For {
+            Set yr = $Order(^GalleryExhibit(exh, yr))
+            Quit:yr=""
+
+            Set val = ""
+            For {
+                Set val = $Order(^GalleryExhibit(exh, yr, val))
+                Quit:val=""
+
+                Set dt = ""
+                For {
+                    Set dt = $Order(^GalleryExhibit(exh, yr, val, dt))
+                    Quit:dt=""
+
+                    Write !,"Виставка: ", exh
+                    Write !,"Рік: ", yr, ", Вартість: ", val, " млн, Дата ($H): ", dt
+
+                    Set data = $Get(^GalleryExhibit(exh, yr, val, dt))
+                    If $ListValid(data) {
+                        ; Рядковий список - перший елемент
+                        Set strList = $ListGet(data, 1)
+                        If strList '= "" {
+                            Write !,"  Художник: ", $Piece(strList, "|", 1)
+                            Write !,"  Твір: ", $Piece(strList, "|", 2)
+                            Write !,"  Техніка: ", $Piece(strList, "|", 3)
+                        }
+                        ; Системний список - другий елемент
+                        Set sysList = $ListGet(data, 2)
+                        If $ListValid(sysList) {
+                            Write !,"  Розмір: ", $ListGet(sysList, 1)
+                            Write !,"  Додано: ", $ListGet(sysList, 2)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Write !
+    Quit
+
+DemonstrateGlobalFunctions
+    New exh, node, q, i
+
+    Write !,"=== Функції глобалів ===",!
+
+    ; $DATA - перевірка існування
+    Set exh = $Order(^GalleryExhibit(""))
+    If exh '= "" {
+        Write "$DATA(^GalleryExhibit(""", exh, """)): ", $Data(^GalleryExhibit(exh)), !
+    }
+
+    ; $ORDER - перехід по індексах
+    Write !,"$ORDER - виставки: "
+    Set exh = ""
+    For {
+        Set exh = $Order(^GalleryExhibit(exh))
+        Quit:exh=""
+        Write exh, " "
+    }
+    Write !
+
+    ; $GET - безпечне отримання
+    Set node = $Get(^GalleryExhibit("Неіснуюча"), "не знайдено")
+    Write !,"$GET неіснуючого: ", node, !
+
+    ; $QUERY - обхід всього глобала
+    Write !,"$QUERY (перші 3 вузли):",!
+    Set q = "^GalleryExhibit"
+    For i=1:1:3 {
+        Set q = $Query(@q)
+        Quit:q=""
+        Write "  ", q, !
+    }
+
+    ; $QLENGTH і $QSUBSCRIPT
+    Set q = $Query(^GalleryExhibit(""))
+    If q '= "" {
+        Write !,"$QLENGTH: ", $QLength(q), " індексів"
+        Write !,"$QSUBSCRIPT:"
+        For i=1:1:$QLength(q) {
+            Write " [", i, "]=", $QSubscript(q, i)
+        }
+        Write !
+    }
+
+    Write !,"Готово",!
+    Quit
